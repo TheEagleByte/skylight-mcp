@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   release:
@@ -23,6 +24,7 @@ jobs:
         with:
           node-version: 20
           cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
         run: npm ci
@@ -38,6 +40,9 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Publish to npm
+        run: npm publish --access public --provenance
 
       - name: Extract version from tag
         id: version
