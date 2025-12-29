@@ -11,20 +11,78 @@ An MCP (Model Context Protocol) server for the Skylight Calendar API. Enables AI
 - **Family**: View family members and devices
 - **Rewards**: Check reward points and available rewards
 
+## Quick Start
+
+### Installation
+
+#### Option 1: npm package (Recommended)
+
+**mcp.json:**
+```json
+{
+  "mcpServers": {
+    "skylight": {
+      "command": "npx",
+      "args": ["@eaglebyte/skylight-mcp"],
+      "env": {
+        "SKYLIGHT_EMAIL": "your_email@example.com",
+        "SKYLIGHT_PASSWORD": "your_password",
+        "SKYLIGHT_FRAME_ID": "your_frame_id"
+      }
+    }
+  }
+}
+```
+
+**Claude Code:**
+```bash
+claude mcp add skylight npx @eaglebyte/skylight-mcp \
+  -e SKYLIGHT_EMAIL=your_email@example.com \
+  -e SKYLIGHT_PASSWORD=your_password \
+  -e SKYLIGHT_FRAME_ID=your_frame_id
+```
+
+#### Option 2: From source
+
+```bash
+git clone https://github.com/TheEagleByte/skylight-mcp.git
+cd skylight-mcp && npm install && npm run build
+```
+
+Then use in mcp.json:
+```json
+{
+  "mcpServers": {
+    "skylight": {
+      "command": "node",
+      "args": ["/path/to/skylight-mcp/dist/index.js"],
+      "env": {
+        "SKYLIGHT_EMAIL": "your_email@example.com",
+        "SKYLIGHT_PASSWORD": "your_password",
+        "SKYLIGHT_FRAME_ID": "your_frame_id"
+      }
+    }
+  }
+}
+```
+
+### Instructions for AI
+
+Copy this into your AI's custom instructions or system prompt:
+
+> You have access to the Skylight MCP server. Skylight is a smart family calendar display that shows calendars, chores, grocery lists, meals, and rewards. Use the Skylight tools to help manage family schedules and organization.
+>
+> Tips:
+> - Call `get_family_members` before assigning chores to get member names
+> - Grocery items default to the main grocery list if no list specified
+> - Dates accept "today", "tomorrow", day names, or YYYY-MM-DD format
+> - Some tools (rewards, meals, photos) require Skylight Plus subscription
+
 ## Prerequisites
 
 - Node.js 18+
 - A Skylight account with an active subscription
-- Your Skylight API token (see [Authentication](#authentication))
-
-## Installation
-
-```bash
-git clone https://github.com/TheEagleByte/skylight-mcp.git
-cd skylight-mcp
-npm install
-npm run build
-```
+- Your Skylight Frame ID (see [Finding your Frame ID](#finding-your-frame-id))
 
 ## Authentication
 
@@ -78,26 +136,6 @@ SKYLIGHT_EMAIL=your_email@example.com
 SKYLIGHT_PASSWORD=your_password
 SKYLIGHT_FRAME_ID=your_frame_id
 SKYLIGHT_TIMEZONE=America/New_York
-```
-
-## Usage with Claude Desktop
-
-Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
-
-```json
-{
-  "mcpServers": {
-    "skylight": {
-      "command": "node",
-      "args": ["/path/to/skylight-mcp/dist/index.js"],
-      "env": {
-        "SKYLIGHT_EMAIL": "your_email@example.com",
-        "SKYLIGHT_PASSWORD": "your_password",
-        "SKYLIGHT_FRAME_ID": "your_frame_id"
-      }
-    }
-  }
-}
 ```
 
 ## Available Tools
@@ -171,16 +209,6 @@ npm test
 # Type check
 npm run typecheck
 ```
-
-## Known Limitations
-
-The following features are not yet available in the reverse-engineered API:
-
-- Creating calendar events
-- Adding items to lists
-- Meal plans
-
-These limitations are due to the endpoints not being documented in the community API reference.
 
 ## License
 
