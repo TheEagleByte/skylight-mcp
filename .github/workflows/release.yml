@@ -46,8 +46,9 @@ jobs:
       - name: Generate changelog
         id: changelog
         run: |
-          # Get the previous tag
-          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          # Get the previous tag by listing all tags sorted by version
+          CURRENT_TAG="${GITHUB_REF#refs/tags/}"
+          PREV_TAG=$(git tag --sort=-version:refname | grep -v "^${CURRENT_TAG}$" | head -n 1 || echo "")
 
           if [ -z "$PREV_TAG" ]; then
             # First release - get all commits
