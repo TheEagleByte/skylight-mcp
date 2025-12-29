@@ -1,6 +1,6 @@
 {
   "name": "@eaglebyte/skylight-mcp",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "MCP server for Skylight Calendar API - enables agentic interactions for calendar, chores, lists, and family management",
   "type": "module",
   "main": "dist/index.js",
