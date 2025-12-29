@@ -1,0 +1,48 @@
+{
+  "name": "@skylight/mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for Skylight Calendar API - enables agentic interactions for calendar, chores, lists, and family management",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "skylight-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit",
+    "prepare": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "skylight",
+    "calendar",
+    "model-context-protocol",
+    "claude",
+    "ai",
+    "family",
+    "chores"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.11.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.2",
+    "typescript": "^5.4.5",
+    "tsx": "^4.7.0",
+    "vitest": "^1.6.0",
+    "eslint": "^8.57.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
