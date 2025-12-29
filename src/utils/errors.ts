@@ -70,8 +70,9 @@ export class ParseError extends SkylightError {
 
 /**
  * Format an error for MCP tool response
+ * Accepts unknown to handle any value from catch blocks safely
  */
-export function formatErrorForMcp(error: Error): string {
+export function formatErrorForMcp(error: unknown): string {
   if (error instanceof AuthenticationError) {
     return `Authentication Error: ${error.message}
 
@@ -108,5 +109,9 @@ Please check your environment variables are set correctly.`;
     return `Skylight Error: ${error.message}`;
   }
 
-  return `Error: ${error.message}`;
+  if (error instanceof Error) {
+    return `Error: ${error.message}`;
+  }
+
+  return `Error: ${String(error)}`;
 }

@@ -9,6 +9,11 @@ import {
 
 const BASE_URL = "https://app.ourskylight.com";
 
+/**
+ * Skylight subscription status types
+ */
+export type SubscriptionStatus = "plus" | "free" | "trial" | null;
+
 export interface RequestOptions {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   params?: Record<string, string | boolean | number | undefined>;
@@ -23,6 +28,7 @@ export class SkylightClient {
   private config: Config;
   private resolvedToken: string | null = null;
   private loginPromise: Promise<string> | null = null;
+  private subscriptionStatus: SubscriptionStatus = null;
 
   constructor(config?: Config) {
     this.config = config ?? getConfig();
@@ -69,6 +75,7 @@ export class SkylightClient {
 
     console.error("Logging in to Skylight...");
     const result = await login(email, password);
+    this.subscriptionStatus = result.subscriptionStatus as SubscriptionStatus;
     console.error(`Logged in as ${result.email} (${result.subscriptionStatus})`);
     return result.token;
   }
@@ -208,6 +215,27 @@ export class SkylightClient {
   get timezone(): string {
     return this.config.timezone;
   }
+
+  /**
+   * Check if user has Plus subscription
+   */
+  hasPlus(): boolean {
+    return this.subscriptionStatus === "plus";
+  }
+
+  /**
+   * Get the subscription status
+   */
+  getSubscriptionStatus(): SubscriptionStatus {
+    return this.subscriptionStatus;
+  }
+
+  /**
+   * Initialize the client (triggers login if using email/password auth)
+   */
+  async initialize(): Promise<void> {
+    await this.getToken();
+  }
 }
 
 // Singleton instance
@@ -218,4 +246,14 @@ export function getClient(): SkylightClient {
     clientInstance = new SkylightClient();
   }
   return clientInstance;
+}
+
+/**
+ * Initialize the client singleton and return it
+ * This triggers login if using email/password auth
+ */
+export async function initializeClient(): Promise<SkylightClient> {
+  const client = getClient();
+  await client.initialize();
+  return client;
 }

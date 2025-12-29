@@ -91,7 +91,7 @@ Use this to answer:
           content: [
             {
               type: "text" as const,
-              text: formatErrorForMcp(error as Error),
+              text: formatErrorForMcp(error),
             },
           ],
           isError: true,
@@ -141,7 +141,7 @@ Use this to answer:
           content: [
             {
               type: "text" as const,
-              text: formatErrorForMcp(error as Error),
+              text: formatErrorForMcp(error),
             },
           ],
           isError: true,
@@ -202,7 +202,7 @@ Use this to answer:
           content: [
             {
               type: "text" as const,
-              text: formatErrorForMcp(error as Error),
+              text: formatErrorForMcp(error),
             },
           ],
           isError: true,

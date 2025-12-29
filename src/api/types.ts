@@ -204,3 +204,131 @@ export interface CreateTaskBoxItemRequest {
     attributes: Partial<TaskBoxItemAttributes>;
   };
 }
+
+// List request types
+export interface CreateListRequest {
+  data: {
+    type: "list";
+    attributes: {
+      label: string;
+      kind: "shopping" | "to_do";
+      color?: string | null;
+    };
+  };
+}
+
+export interface UpdateListRequest {
+  data: {
+    type: "list";
+    attributes: Partial<{
+      label: string;
+      kind: "shopping" | "to_do";
+      color: string | null;
+    }>;
+  };
+}
+
+// List item request types
+export interface CreateListItemRequest {
+  data: {
+    type: "list_item";
+    attributes: {
+      label: string;
+      section?: string | null;
+    };
+  };
+}
+
+export interface UpdateListItemRequest {
+  data: {
+    type: "list_item";
+    attributes: Partial<{
+      label: string;
+      status: "pending" | "completed";
+      section: string | null;
+      position: number | null;
+    }>;
+  };
+}
+
+export type ListItemResponse = JsonApiResponse<ListItemResource>;
+
+// Calendar event request types
+export interface CreateCalendarEventRequest {
+  summary: string;
+  starts_at: string;
+  ends_at: string;
+  all_day?: boolean;
+  description?: string;
+  location?: string;
+  category_ids?: string[];
+  calendar_account_id?: string;
+  calendar_id?: string;
+  rrule?: string[] | null;
+  timezone?: string;
+  countdown_enabled?: boolean;
+  kind?: string;
+}
+
+export interface UpdateCalendarEventRequest {
+  summary?: string;
+  starts_at?: string;
+  ends_at?: string;
+  all_day?: boolean;
+  description?: string;
+  location?: string;
+  category_ids?: string[];
+  rrule?: string[] | null;
+  timezone?: string;
+  countdown_enabled?: boolean;
+}
+
+export type CalendarEventResponse = JsonApiResponse<CalendarEventResource>;
+
+// Chore update request type
+export interface UpdateChoreRequest {
+  data: {
+    type: "chore";
+    attributes: Partial<ChoreAttributes>;
+    relationships?: ChoreRelationships;
+  };
+}
+
+// Reward request types
+export interface CreateRewardRequest {
+  data: {
+    type: "reward";
+    attributes: {
+      name: string;
+      description?: string | null;
+      emoji_icon?: string | null;
+      point_value: number;
+      respawn_on_redemption?: boolean;
+    };
+    relationships?: {
+      categories?: {
+        data: JsonApiResourceId[];
+      };
+    };
+  };
+}
+
+export interface UpdateRewardRequest {
+  data: {
+    type: "reward";
+    attributes: Partial<{
+      name: string;
+      description: string | null;
+      emoji_icon: string | null;
+      point_value: number;
+      respawn_on_redemption: boolean;
+    }>;
+    relationships?: {
+      categories?: {
+        data: JsonApiResourceId[];
+      };
+    };
+  };
+}
+
+export type RewardResponse = JsonApiResponse<RewardResource>;

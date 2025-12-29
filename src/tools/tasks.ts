@@ -68,7 +68,7 @@ The task will appear on the Skylight display in the task box.`,
           content: [
             {
               type: "text" as const,
-              text: formatErrorForMcp(error as Error),
+              text: formatErrorForMcp(error),
             },
           ],
           isError: true,

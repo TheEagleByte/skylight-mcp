@@ -1,7 +1,13 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
-import { getCalendarEvents, getSourceCalendars } from "../api/endpoints/calendar.js";
+import {
+  getCalendarEvents,
+  getSourceCalendars,
+  createCalendarEvent,
+  updateCalendarEvent,
+  deleteCalendarEvent,
+} from "../api/endpoints/calendar.js";
 import { getTodayDate, parseDate, formatDateForDisplay } from "../utils/dates.js";
 import { formatErrorForMcp } from "../utils/errors.js";
 import { getConfig } from "../config.js";
@@ -90,7 +96,7 @@ Returns a list of events with their titles, times, and details.`,
           content: [
             {
               type: "text" as const,
-              text: formatErrorForMcp(error as Error),
+              text: formatErrorForMcp(error),
             },
           ],
           isError: true,
@@ -153,9 +159,168 @@ Returns a list of connected calendar sources (Google, iCloud, etc.).`,
           content: [
             {
               type: "text" as const,
-              text: formatErrorForMcp(error as Error),
+              text: formatErrorForMcp(error),
             },
           ],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // create_calendar_event tool
+  server.tool(
+    "create_calendar_event",
+    `Create a new calendar event in Skylight.
+
+Use this when:
+- Scheduling a new event: "Add a dentist appointment on Friday at 2pm"
+- Creating family activities: "Schedule soccer practice every Saturday at 10am"
+- Adding reminders: "Put Mom's birthday on the calendar"
+
+Parameters:
+- summary (required): Event title (e.g., "Dentist Appointment")
+- startsAt (required): Start time in ISO format or natural language
+- endsAt (required): End time in ISO format or natural language
+- allDay: Set to true for all-day events
+- description: Additional notes for the event
+- location: Where the event takes place
+- categoryIds: Family member IDs to associate with the event
+
+Returns: The created event details.
+
+Related: Use get_family_members to get category IDs for assignments.`,
+    {
+      summary: z.string().describe("Event title (e.g., 'Dentist Appointment')"),
+      startsAt: z.string().describe("Start time (ISO format like '2025-01-15T14:00:00')"),
+      endsAt: z.string().describe("End time (ISO format like '2025-01-15T15:00:00')"),
+      allDay: z.boolean().optional().default(false).describe("True for all-day events"),
+      description: z.string().optional().describe("Additional notes for the event"),
+      location: z.string().optional().describe("Event location"),
+      categoryIds: z.array(z.string()).optional().describe("Family member IDs to assign"),
+    },
+    async ({ summary, startsAt, endsAt, allDay, description, location, categoryIds }) => {
+      try {
+        const config = getConfig();
+        const event = await createCalendarEvent({
+          summary,
+          starts_at: startsAt,
+          ends_at: endsAt,
+          all_day: allDay,
+          description,
+          location,
+          category_ids: categoryIds,
+          timezone: config.timezone,
+          kind: "standard",
+        });
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Created calendar event "${summary}" (ID: ${event.id})`,
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text" as const, text: formatErrorForMcp(error) }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // update_calendar_event tool
+  server.tool(
+    "update_calendar_event",
+    `Update an existing calendar event.
+
+Use this when:
+- Changing event time: "Move the dentist appointment to 3pm"
+- Updating event details: "Add location to the meeting"
+- Renaming an event: "Change 'Doctor' to 'Dr. Smith checkup'"
+
+Parameters:
+- eventId (required): ID of the event to update (from get_calendar_events)
+- summary: New title for the event
+- startsAt: New start time (ISO format)
+- endsAt: New end time (ISO format)
+- description: Updated notes
+- location: Updated location
+- categoryIds: Updated family member assignments
+
+Returns: The updated event details.`,
+    {
+      eventId: z.string().describe("ID of the event to update"),
+      summary: z.string().optional().describe("New event title"),
+      startsAt: z.string().optional().describe("New start time (ISO format)"),
+      endsAt: z.string().optional().describe("New end time (ISO format)"),
+      allDay: z.boolean().optional().describe("Change to all-day event"),
+      description: z.string().optional().describe("Updated notes"),
+      location: z.string().optional().describe("Updated location"),
+      categoryIds: z.array(z.string()).optional().describe("Updated family member assignments"),
+    },
+    async ({ eventId, summary, startsAt, endsAt, allDay, description, location, categoryIds }) => {
+      try {
+        const updates: Record<string, unknown> = {};
+        if (summary !== undefined) updates.summary = summary;
+        if (startsAt !== undefined) updates.starts_at = startsAt;
+        if (endsAt !== undefined) updates.ends_at = endsAt;
+        if (allDay !== undefined) updates.all_day = allDay;
+        if (description !== undefined) updates.description = description;
+        if (location !== undefined) updates.location = location;
+        if (categoryIds !== undefined) updates.category_ids = categoryIds;
+
+        const event = await updateCalendarEvent(eventId, updates);
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Updated calendar event (ID: ${event.id})`,
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text" as const, text: formatErrorForMcp(error) }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // delete_calendar_event tool
+  server.tool(
+    "delete_calendar_event",
+    `Delete a calendar event from Skylight.
+
+Use this when:
+- Canceling an event: "Remove the dentist appointment"
+- Deleting old events: "Delete the meeting from yesterday"
+
+Parameters:
+- eventId (required): ID of the event to delete (from get_calendar_events)
+
+Note: This permanently removes the event. For recurring events, this may only delete one instance.`,
+    {
+      eventId: z.string().describe("ID of the event to delete"),
+    },
+    async ({ eventId }) => {
+      try {
+        await deleteCalendarEvent(eventId);
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Deleted calendar event (ID: ${eventId})`,
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text" as const, text: formatErrorForMcp(error) }],
           isError: true,
         };
       }

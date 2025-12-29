@@ -94,7 +94,7 @@ export function parseTime(input: string): string {
   // 12-hour format with AM/PM
   const match = trimmed.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
   if (match) {
-    let [, hours, minutes, period] = match;
+    const [, hours, minutes, period] = match;
     let h = parseInt(hours, 10);
     if (period.toUpperCase() === "PM" && h !== 12) {
       h += 12;
