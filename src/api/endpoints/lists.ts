@@ -4,6 +4,11 @@ import type {
   ListResponse,
   ListResource,
   ListItemResource,
+  CreateListRequest,
+  UpdateListRequest,
+  CreateListItemRequest,
+  UpdateListItemRequest,
+  ListItemResponse,
 } from "../types.js";
 
 /**
@@ -60,4 +65,113 @@ export async function findListByType(
   }
 
   return filtered[0];
+}
+
+/**
+ * Create a new list
+ */
+export async function createList(
+  label: string,
+  kind: "shopping" | "to_do",
+  color?: string
+): Promise<ListResource> {
+  const client = getClient();
+  const request: CreateListRequest = {
+    data: {
+      type: "list",
+      attributes: {
+        label,
+        kind,
+        color: color ?? null,
+      },
+    },
+  };
+  const response = await client.post<ListResponse>("/api/frames/{frameId}/lists", request);
+  return response.data;
+}
+
+/**
+ * Update an existing list
+ */
+export async function updateList(
+  listId: string,
+  updates: { label?: string; kind?: "shopping" | "to_do"; color?: string | null }
+): Promise<ListResource> {
+  const client = getClient();
+  const request: UpdateListRequest = {
+    data: {
+      type: "list",
+      attributes: updates,
+    },
+  };
+  const response = await client.request<ListResponse>(`/api/frames/{frameId}/lists/${listId}`, {
+    method: "PUT",
+    body: request,
+  });
+  return response.data;
+}
+
+/**
+ * Delete a list
+ */
+export async function deleteList(listId: string): Promise<void> {
+  const client = getClient();
+  await client.request(`/api/frames/{frameId}/lists/${listId}`, { method: "DELETE" });
+}
+
+/**
+ * Create a new list item
+ */
+export async function createListItem(
+  listId: string,
+  label: string,
+  section?: string
+): Promise<ListItemResource> {
+  const client = getClient();
+  const request: CreateListItemRequest = {
+    data: {
+      type: "list_item",
+      attributes: {
+        label,
+        section: section ?? null,
+      },
+    },
+  };
+  const response = await client.post<ListItemResponse>(
+    `/api/frames/{frameId}/lists/${listId}/list_items`,
+    request
+  );
+  return response.data;
+}
+
+/**
+ * Update a list item
+ */
+export async function updateListItem(
+  listId: string,
+  itemId: string,
+  updates: { label?: string; status?: "pending" | "completed"; section?: string | null }
+): Promise<ListItemResource> {
+  const client = getClient();
+  const request: UpdateListItemRequest = {
+    data: {
+      type: "list_item",
+      attributes: updates,
+    },
+  };
+  const response = await client.request<ListItemResponse>(
+    `/api/frames/{frameId}/lists/${listId}/list_items/${itemId}`,
+    { method: "PUT", body: request }
+  );
+  return response.data;
+}
+
+/**
+ * Delete a list item
+ */
+export async function deleteListItem(listId: string, itemId: string): Promise<void> {
+  const client = getClient();
+  await client.request(`/api/frames/{frameId}/lists/${listId}/list_items/${itemId}`, {
+    method: "DELETE",
+  });
 }

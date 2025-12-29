@@ -1,7 +1,16 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
-import { getRewards, getRewardPoints } from "../api/endpoints/rewards.js";
+import {
+  getRewards,
+  getRewardPoints,
+  createReward,
+  updateReward,
+  deleteReward,
+  redeemReward,
+  unredeemReward,
+} from "../api/endpoints/rewards.js";
+import { findCategoryByName } from "../api/endpoints/categories.js";
 import { formatErrorForMcp } from "../utils/errors.js";
 
 export function registerRewardTools(server: McpServer): void {
@@ -134,6 +143,248 @@ Use this to answer:
               text: formatErrorForMcp(error as Error),
             },
           ],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // create_reward tool
+  server.tool(
+    "create_reward",
+    `Create a new reward that can be redeemed with points (Plus subscription required).
+
+Use this when:
+- Adding a new reward: "Create a reward for 30 minutes of screen time"
+- Setting up family incentives: "Add a pizza night reward worth 100 points"
+
+Parameters:
+- name (required): Reward name (e.g., "30 min Screen Time")
+- pointValue (required): Points needed to redeem this reward
+- description: Additional details about the reward
+- emojiIcon: Emoji to display with the reward
+- assignee: Family member name to assign this reward to
+- respawnOnRedemption: If true, reward can be redeemed multiple times
+
+Returns: The created reward details.`,
+    {
+      name: z.string().describe("Reward name (e.g., '30 min Screen Time')"),
+      pointValue: z.number().describe("Points needed to redeem this reward"),
+      description: z.string().optional().describe("Additional details about the reward"),
+      emojiIcon: z.string().optional().describe("Emoji for the reward (e.g., '🎮')"),
+      assignee: z.string().optional().describe("Family member to assign this reward to"),
+      respawnOnRedemption: z.boolean().optional().default(false).describe("Can be redeemed multiple times"),
+    },
+    async ({ name, pointValue, description, emojiIcon, assignee, respawnOnRedemption }) => {
+      try {
+        let categoryIds: string[] | undefined;
+        if (assignee) {
+          const category = await findCategoryByName(assignee);
+          if (!category) {
+            return {
+              content: [{ type: "text" as const, text: `Could not find family member "${assignee}"` }],
+              isError: true,
+            };
+          }
+          categoryIds = [category.id];
+        }
+
+        const reward = await createReward({
+          name,
+          pointValue,
+          description,
+          emojiIcon,
+          categoryIds,
+          respawnOnRedemption,
+        });
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Created reward "${name}" worth ${pointValue} points (ID: ${reward.id})`,
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text" as const, text: formatErrorForMcp(error as Error) }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // update_reward tool
+  server.tool(
+    "update_reward",
+    `Update an existing reward (Plus subscription required).
+
+Use this when:
+- Changing point value: "Make the screen time reward cost 50 points"
+- Updating reward details: "Add a description to the pizza reward"
+
+Parameters:
+- rewardId (required): ID of the reward (from get_rewards)
+- name: New reward name
+- pointValue: New point cost
+- description: Updated description
+- emojiIcon: Updated emoji
+
+Returns: The updated reward details.`,
+    {
+      rewardId: z.string().describe("ID of the reward to update"),
+      name: z.string().optional().describe("New reward name"),
+      pointValue: z.number().optional().describe("New point cost"),
+      description: z.string().nullable().optional().describe("Updated description (null to clear)"),
+      emojiIcon: z.string().nullable().optional().describe("Updated emoji (null to clear)"),
+      respawnOnRedemption: z.boolean().optional().describe("Can be redeemed multiple times"),
+    },
+    async ({ rewardId, name, pointValue, description, emojiIcon, respawnOnRedemption }) => {
+      try {
+        const updates: Parameters<typeof updateReward>[1] = {};
+        if (name !== undefined) updates.name = name;
+        if (pointValue !== undefined) updates.pointValue = pointValue;
+        if (description !== undefined) updates.description = description;
+        if (emojiIcon !== undefined) updates.emojiIcon = emojiIcon;
+        if (respawnOnRedemption !== undefined) updates.respawnOnRedemption = respawnOnRedemption;
+
+        const reward = await updateReward(rewardId, updates);
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Updated reward (ID: ${reward.id})`,
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text" as const, text: formatErrorForMcp(error as Error) }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // delete_reward tool
+  server.tool(
+    "delete_reward",
+    `Delete a reward (Plus subscription required).
+
+Use this when:
+- Removing an old reward
+- Cleaning up unused rewards
+
+Parameters:
+- rewardId (required): ID of the reward to delete (from get_rewards)
+
+Note: This permanently removes the reward.`,
+    {
+      rewardId: z.string().describe("ID of the reward to delete"),
+    },
+    async ({ rewardId }) => {
+      try {
+        await deleteReward(rewardId);
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Deleted reward (ID: ${rewardId})`,
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text" as const, text: formatErrorForMcp(error as Error) }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // redeem_reward tool
+  server.tool(
+    "redeem_reward",
+    `Redeem a reward using points (Plus subscription required).
+
+Use this when:
+- A family member wants to cash in points: "Redeem the screen time reward for Johnny"
+- Claiming an earned reward
+
+Parameters:
+- rewardId (required): ID of the reward to redeem (from get_rewards)
+- assignee: Family member redeeming the reward (uses their points)
+
+Returns: The redeemed reward details.`,
+    {
+      rewardId: z.string().describe("ID of the reward to redeem"),
+      assignee: z.string().optional().describe("Family member redeeming the reward"),
+    },
+    async ({ rewardId, assignee }) => {
+      try {
+        let categoryId: string | undefined;
+        if (assignee) {
+          const category = await findCategoryByName(assignee);
+          if (!category) {
+            return {
+              content: [{ type: "text" as const, text: `Could not find family member "${assignee}"` }],
+              isError: true,
+            };
+          }
+          categoryId = category.id;
+        }
+
+        const reward = await redeemReward(rewardId, categoryId);
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Redeemed reward (ID: ${reward.id})${assignee ? ` for ${assignee}` : ""}`,
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text" as const, text: formatErrorForMcp(error as Error) }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // unredeem_reward tool
+  server.tool(
+    "unredeem_reward",
+    `Cancel a reward redemption (Plus subscription required).
+
+Use this when:
+- A redemption was made by mistake
+- Undoing a reward claim
+
+Parameters:
+- rewardId (required): ID of the reward to unredeem
+
+Returns: The unredeemed reward details.`,
+    {
+      rewardId: z.string().describe("ID of the reward to unredeem"),
+    },
+    async ({ rewardId }) => {
+      try {
+        const reward = await unredeemReward(rewardId);
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Unredeemed reward (ID: ${reward.id})`,
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text" as const, text: formatErrorForMcp(error as Error) }],
           isError: true,
         };
       }

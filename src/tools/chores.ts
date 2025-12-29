@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
-import { getChores, createChore } from "../api/endpoints/chores.js";
+import { getChores, createChore, updateChore, deleteChore } from "../api/endpoints/chores.js";
 import { findCategoryByName } from "../api/endpoints/categories.js";
 import { getTodayDate, getDateOffset, parseDate, parseTime, formatDateForDisplay } from "../utils/dates.js";
 import { formatErrorForMcp } from "../utils/errors.js";
@@ -258,6 +258,122 @@ The chore will appear on the Skylight display.`,
               text: formatErrorForMcp(error as Error),
             },
           ],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // update_chore tool
+  server.tool(
+    "update_chore",
+    `Update an existing chore in Skylight.
+
+Use this when:
+- Marking a chore as complete: "Mark 'dishes' as done"
+- Changing chore assignment: "Reassign the trash to Dad"
+- Updating chore details: "Change the time for the homework chore"
+
+Parameters:
+- choreId (required): ID of the chore (from get_chores)
+- summary: New description for the chore
+- status: "completed" to mark done, "pending" to mark incomplete
+- date: New due date
+- time: New due time
+- assignee: New family member assignment
+
+Returns: The updated chore details.`,
+    {
+      choreId: z.string().describe("ID of the chore to update"),
+      summary: z.string().optional().describe("New chore description"),
+      status: z.enum(["pending", "completed"]).optional().describe("'completed' to mark done, 'pending' to mark incomplete"),
+      date: z.string().optional().describe("New due date (YYYY-MM-DD or 'today', 'tomorrow')"),
+      time: z.string().nullable().optional().describe("New due time (e.g., '10:00 AM', or null to clear)"),
+      assignee: z.string().nullable().optional().describe("New family member assignment (or null to unassign)"),
+      rewardPoints: z.number().nullable().optional().describe("New reward points (or null to clear)"),
+    },
+    async ({ choreId, summary, status, date, time, assignee, rewardPoints }) => {
+      try {
+        const config = getConfig();
+        const updates: Parameters<typeof updateChore>[1] = {};
+
+        if (summary !== undefined) updates.summary = summary;
+        if (status !== undefined) updates.status = status;
+        if (date !== undefined) updates.start = parseDate(date, config.timezone);
+        if (time !== undefined) updates.startTime = time ? parseTime(time) : null;
+        if (rewardPoints !== undefined) updates.rewardPoints = rewardPoints;
+
+        // Handle assignee
+        if (assignee !== undefined) {
+          if (assignee === null) {
+            updates.categoryId = null;
+          } else {
+            const category = await findCategoryByName(assignee);
+            if (!category) {
+              return {
+                content: [
+                  {
+                    type: "text" as const,
+                    text: `Could not find family member "${assignee}". Use get_family_members to see available members.`,
+                  },
+                ],
+                isError: true,
+              };
+            }
+            updates.categoryId = category.id;
+          }
+        }
+
+        const chore = await updateChore(choreId, updates);
+        const statusText = status === "completed" ? " (marked complete)" : status === "pending" ? " (marked pending)" : "";
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Updated chore: "${chore.attributes.summary}"${statusText}`,
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text" as const, text: formatErrorForMcp(error as Error) }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // delete_chore tool
+  server.tool(
+    "delete_chore",
+    `Delete a chore from Skylight.
+
+Use this when:
+- Removing an old or irrelevant chore
+- Deleting a chore that was added by mistake
+
+Parameters:
+- choreId (required): ID of the chore to delete (from get_chores)
+
+Note: This permanently removes the chore. For recurring chores, this may only delete one instance.`,
+    {
+      choreId: z.string().describe("ID of the chore to delete"),
+    },
+    async ({ choreId }) => {
+      try {
+        await deleteChore(choreId);
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Deleted chore (ID: ${choreId})`,
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text" as const, text: formatErrorForMcp(error as Error) }],
           isError: true,
         };
       }
