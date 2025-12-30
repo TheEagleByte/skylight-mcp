@@ -210,6 +210,50 @@ npm test
 npm run typecheck
 ```
 
+## API Documentation
+
+This MCP server is built on top of the reverse-engineered Skylight API. The API endpoints were documented using the [skylight-api](https://github.com/TheEagleByte/skylight-api) project, which converts browser network traffic (HAR files) into an OpenAPI specification.
+
+**API Resources:**
+- [Interactive API Docs (Swagger UI)](https://theeaglebyte.github.io/skylight-api/swagger.html)
+- [API Reference (ReDoc)](https://theeaglebyte.github.io/skylight-api/redoc.html)
+- [OpenAPI Specification](https://theeaglebyte.github.io/skylight-api/openapi/openapi.yaml)
+
+If you discover new API endpoints or find issues with the current documentation, please contribute to the [skylight-api](https://github.com/TheEagleByte/skylight-api) repository.
+
+## Contributing
+
+Contributions are welcome! Here's how you can help:
+
+1. **Fork the repository** and create a feature branch
+2. **Make your changes** with clear, descriptive commits
+3. **Run tests** (`npm test`) and linting (`npm run lint`) before submitting
+4. **Open a pull request** with a description of your changes
+
+### Development Setup
+
+```bash
+git clone https://github.com/TheEagleByte/skylight-mcp.git
+cd skylight-mcp
+npm install
+npm run dev  # Start with hot reload
+```
+
+### Areas for Contribution
+
+- Adding support for new Skylight API endpoints
+- Improving error handling and edge cases
+- Enhancing documentation
+- Writing additional tests
+
+## Issues & Support
+
+- **Bug reports**: [Open an issue](https://github.com/TheEagleByte/skylight-mcp/issues/new) with steps to reproduce
+- **Feature requests**: [Open an issue](https://github.com/TheEagleByte/skylight-mcp/issues/new) describing the use case
+- **Questions**: [Start a discussion](https://github.com/TheEagleByte/skylight-mcp/discussions) or open an issue
+
+Please include relevant details like your Node.js version, error messages, and configuration (with sensitive values redacted).
+
 ## License
 
 MIT
