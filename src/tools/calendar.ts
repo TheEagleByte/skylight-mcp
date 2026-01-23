@@ -198,8 +198,33 @@ Related: Use get_family_members to get category IDs for assignments.`,
       description: z.string().optional().describe("Additional notes for the event"),
       location: z.string().optional().describe("Event location"),
       categoryIds: z.array(z.string()).optional().describe("Family member IDs to assign"),
+      calendarId: z
+        .string()
+        .optional()
+        .describe("Google Calendar ID to sync the event to (from get_source_calendars)"),
+      calendarAccountId: z
+        .string()
+        .optional()
+        .describe("Calendar account ID from Skylight (from get_source_calendars)"),
+      timezone: z
+        .string()
+        .optional()
+        .describe("Timezone for the event (e.g., 'America/Los_Angeles')"),
+      rrule: z
+        .array(z.string())
+        .nullable()
+        .optional()
+        .describe("Recurrence rules in RRULE format"),
+      countdownEnabled: z
+        .boolean()
+        .optional()
+        .describe("Whether to show countdown for this event"),
+      kind: z
+        .string()
+        .optional()
+        .describe("Event kind (e.g., 'standard')"),
     },
-    async ({ summary, startsAt, endsAt, allDay, description, location, categoryIds }) => {
+    async ({ summary, startsAt, endsAt, allDay, description, location, categoryIds, calendarId, calendarAccountId, timezone, rrule, countdownEnabled, kind }) => {
       try {
         const config = getConfig();
         const event = await createCalendarEvent({
@@ -210,8 +235,12 @@ Related: Use get_family_members to get category IDs for assignments.`,
           description,
           location,
           category_ids: categoryIds,
-          timezone: config.timezone,
-          kind: "standard",
+          calendar_id: calendarId,
+          calendar_account_id: calendarAccountId,
+          timezone: timezone ?? config.timezone,
+          rrule: rrule,
+          countdown_enabled: countdownEnabled,
+          kind: kind ?? "standard",
         });
 
         return {
@@ -260,8 +289,33 @@ Returns: The updated event details.`,
       description: z.string().optional().describe("Updated notes"),
       location: z.string().optional().describe("Updated location"),
       categoryIds: z.array(z.string()).optional().describe("Updated family member assignments"),
+      calendarId: z
+        .string()
+        .optional()
+        .describe("Google Calendar ID to sync the event to (from get_source_calendars)"),
+      calendarAccountId: z
+        .string()
+        .optional()
+        .describe("Calendar account ID from Skylight (from get_source_calendars)"),
+      timezone: z
+        .string()
+        .optional()
+        .describe("Timezone for the event (e.g., 'America/Los_Angeles')"),
+      rrule: z
+        .array(z.string())
+        .nullable()
+        .optional()
+        .describe("Recurrence rules in RRULE format"),
+      countdownEnabled: z
+        .boolean()
+        .optional()
+        .describe("Whether to show countdown for this event"),
+      kind: z
+        .string()
+        .optional()
+        .describe("Event kind (e.g., 'standard')"),
     },
-    async ({ eventId, summary, startsAt, endsAt, allDay, description, location, categoryIds }) => {
+    async ({ eventId, summary, startsAt, endsAt, allDay, description, location, categoryIds, calendarId, calendarAccountId, timezone, rrule, countdownEnabled, kind }) => {
       try {
         const updates: Record<string, unknown> = {};
         if (summary !== undefined) updates.summary = summary;
@@ -271,6 +325,12 @@ Returns: The updated event details.`,
         if (description !== undefined) updates.description = description;
         if (location !== undefined) updates.location = location;
         if (categoryIds !== undefined) updates.category_ids = categoryIds;
+        if (calendarId !== undefined) updates.calendar_id = calendarId;
+        if (calendarAccountId !== undefined) updates.calendar_account_id = calendarAccountId;
+        if (timezone !== undefined) updates.timezone = timezone;
+        if (rrule !== undefined) updates.rrule = rrule;
+        if (countdownEnabled !== undefined) updates.countdown_enabled = countdownEnabled;
+        if (kind !== undefined) updates.kind = kind;
 
         const event = await updateCalendarEvent(eventId, updates);
 

@@ -278,9 +278,12 @@ export interface UpdateCalendarEventRequest {
   description?: string;
   location?: string;
   category_ids?: string[];
+  calendar_account_id?: string;
+  calendar_id?: string;
   rrule?: string[] | null;
   timezone?: string;
   countdown_enabled?: boolean;
+  kind?: string;
 }
 
 export type CalendarEventResponse = JsonApiResponse<CalendarEventResource>;
