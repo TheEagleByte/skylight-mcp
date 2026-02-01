@@ -3,19 +3,43 @@ import type { CategoriesResponse, CategoryResource } from "../types.js";
 
 // Cache for categories (family members)
 let categoriesCache: CategoryResource[] | null = null;
+let categoriesCachedAt = 0;
+let categoriesFetchPromise: Promise<CategoryResource[]> | null = null;
+
+// Cache TTL: 5 minutes - allows new family members to appear without restart
+// while still reducing API calls for frequent operations
+const CATEGORIES_CACHE_TTL = 5 * 60 * 1000;
 
 /**
  * Get all categories (family members/profiles)
+ *
+ * Uses promise deduplication to prevent thundering herd when multiple
+ * concurrent requests occur while the cache is invalid.
  */
 export async function getCategories(useCache = true): Promise<CategoryResource[]> {
-  if (useCache && categoriesCache) {
+  // Check cache validity with inline null check for proper type narrowing
+  if (useCache && categoriesCache !== null && (Date.now() - categoriesCachedAt) < CATEGORIES_CACHE_TTL) {
     return categoriesCache;
   }
 
-  const client = getClient();
-  const response = await client.get<CategoriesResponse>("/api/frames/{frameId}/categories");
-  categoriesCache = response.data;
-  return response.data;
+  // Deduplicate concurrent fetches - reuse pending promise if one exists
+  if (categoriesFetchPromise) {
+    return categoriesFetchPromise;
+  }
+
+  categoriesFetchPromise = (async () => {
+    try {
+      const client = getClient();
+      const response = await client.get<CategoriesResponse>("/api/frames/{frameId}/categories");
+      categoriesCache = response.data;
+      categoriesCachedAt = Date.now();
+      return response.data;
+    } finally {
+      categoriesFetchPromise = null;
+    }
+  })();
+
+  return categoriesFetchPromise;
 }
 
 /**
@@ -23,6 +47,8 @@ export async function getCategories(useCache = true): Promise<CategoryResource[]
  */
 export function clearCategoriesCache(): void {
   categoriesCache = null;
+  categoriesCachedAt = 0;
+  categoriesFetchPromise = null;
 }
 
 /**
