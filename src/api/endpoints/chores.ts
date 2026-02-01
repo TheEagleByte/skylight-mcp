@@ -4,7 +4,6 @@ import type {
   ChoreResponse,
   ChoreResource,
   CategoryResource,
-  CreateChoreRequest,
   UpdateChoreRequest,
 } from "../types.js";
 
@@ -50,7 +49,6 @@ export interface CreateChoreOptions {
   summary: string;
   start: string;
   startTime?: string;
-  status?: string;
   recurring?: boolean;
   recurrenceSet?: string;
   categoryId?: string;
@@ -60,44 +58,42 @@ export interface CreateChoreOptions {
 
 /**
  * Create a new chore
+ *
+ * Uses the /chores/create_multiple endpoint with flat object format
+ * instead of JSON:API nested structure, as required by the Skylight API.
+ * See: https://github.com/TheEagleByte/skylight-mcp/issues/25
  */
 export async function createChore(options: CreateChoreOptions): Promise<ChoreResource> {
   const client = getClient();
 
-  const request: CreateChoreRequest = {
-    data: {
-      type: "chore",
-      attributes: {
-        summary: options.summary,
-        start: options.start,
-        start_time: options.startTime ?? null,
-        status: options.status ?? "pending",
-        recurring: options.recurring ?? false,
-        recurrence_set: options.recurrenceSet ?? null,
-        reward_points: options.rewardPoints ?? null,
-        emoji_icon: options.emojiIcon ?? null,
-      },
-    },
+  // Use flat object format for create_multiple endpoint
+  const request: Record<string, unknown> = {
+    summary: options.summary,
+    start: options.start,
+    start_time: options.startTime ?? null,
+    recurring: options.recurring ?? false,
+    recurring_until: null,
+    routine: false,
+    reward_points: options.rewardPoints ?? null,
+    emoji_icon: options.emojiIcon ?? null,
+    recurrence_set: options.recurrenceSet ? [options.recurrenceSet] : null,
+    category_id: options.categoryId ?? null,
+    category_ids: options.categoryId ? [options.categoryId] : [],
   };
 
-  // Add category relationship if provided
-  if (options.categoryId) {
-    request.data.relationships = {
-      category: {
-        data: {
-          type: "category",
-          id: options.categoryId,
-        },
-      },
-    };
-  }
-
-  const response = await client.post<ChoreResponse>(
-    "/api/frames/{frameId}/chores",
+  const response = await client.post<ChoresResponse>(
+    "/api/frames/{frameId}/chores/create_multiple",
     request
   );
 
-  return response.data;
+  // The create_multiple endpoint returns an array - get the first item
+  const chore = response.data?.[0];
+
+  if (!chore) {
+    throw new Error("Failed to create chore: no data returned from API");
+  }
+
+  return chore;
 }
 
 export interface UpdateChoreOptions {
