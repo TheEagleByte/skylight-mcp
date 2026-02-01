@@ -115,3 +115,59 @@ Please check your environment variables are set correctly.`;
 
   return `Error: ${String(error)}`;
 }
+
+/**
+ * MCP tool response type
+ * The index signature allows for additional properties required by the SDK
+ */
+export interface ToolResponse {
+  [x: string]: unknown;
+  content: Array<{ type: "text"; text: string }>;
+  isError?: boolean;
+}
+
+/**
+ * Wraps a tool handler function with standardized error handling.
+ *
+ * This eliminates the repetitive try/catch pattern in tool implementations:
+ *
+ * Before:
+ * ```typescript
+ * async (params) => {
+ *   try {
+ *     // ... implementation
+ *     return { content: [{ type: "text", text: result }] };
+ *   } catch (error) {
+ *     return { content: [{ type: "text", text: formatErrorForMcp(error) }], isError: true };
+ *   }
+ * }
+ * ```
+ *
+ * After:
+ * ```typescript
+ * toolHandler(async (params) => {
+ *   // ... implementation
+ *   return result; // Just return the string
+ * })
+ * ```
+ *
+ * @param handler - Async function that returns the response text
+ * @returns Wrapped handler with standardized response formatting and error handling
+ */
+export function toolHandler<T>(
+  handler: (params: T) => Promise<string>
+): (params: T) => Promise<ToolResponse> {
+  return async (params: T): Promise<ToolResponse> => {
+    try {
+      const text = await handler(params);
+      return {
+        content: [{ type: "text" as const, text }],
+      };
+    } catch (error) {
+      return {
+        content: [{ type: "text" as const, text: formatErrorForMcp(error) }],
+        isError: true,
+      };
+    }
+  };
+}
