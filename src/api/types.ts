@@ -229,26 +229,17 @@ export interface UpdateListRequest {
 }
 
 // List item request types
+// Note: Unlike other endpoints, list item create/update use simple JSON format, not JSON:API
 export interface CreateListItemRequest {
-  data: {
-    type: "list_item";
-    attributes: {
-      label: string;
-      section?: string | null;
-    };
-  };
+  label: string;
+  section?: string | null;
 }
 
 export interface UpdateListItemRequest {
-  data: {
-    type: "list_item";
-    attributes: Partial<{
-      label: string;
-      status: "pending" | "completed";
-      section: string | null;
-      position: number | null;
-    }>;
-  };
+  label?: string;
+  status?: "pending" | "completed";
+  section?: string | null;
+  position?: number | null;
 }
 
 export type ListItemResponse = JsonApiResponse<ListItemResource>;
