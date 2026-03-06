@@ -157,6 +157,42 @@ export async function updateChore(
   return response.data;
 }
 
+export interface UpdateChoreTemplateOptions {
+  summary?: string;
+  reward_points?: number | null;
+  emoji_icon?: string | null;
+  recurrence_set?: string | null;
+  category_id?: string | null;
+}
+
+/**
+ * Update a recurring chore template without splitting the series.
+ *
+ * Uses PATCH with a flat body on the base template ID (no date suffix).
+ * This updates all future instances of the recurring series, unlike PUT
+ * on an instance ID which splits the series.
+ */
+export async function updateChoreTemplate(
+  templateId: string,
+  attrs: UpdateChoreTemplateOptions
+): Promise<ChoreResource> {
+  const client = getClient();
+  const body: Record<string, unknown> = {};
+
+  if (attrs.summary !== undefined) body.summary = attrs.summary;
+  if (attrs.reward_points !== undefined) body.reward_points = attrs.reward_points;
+  if (attrs.emoji_icon !== undefined) body.emoji_icon = attrs.emoji_icon;
+  if (attrs.recurrence_set !== undefined) body.recurrence_set = attrs.recurrence_set;
+  if (attrs.category_id !== undefined) body.category_id = attrs.category_id;
+
+  const response = await client.request<ChoreResponse>(
+    `/api/frames/{frameId}/chores/${templateId}`,
+    { method: "PATCH", body }
+  );
+
+  return response.data;
+}
+
 /**
  * Delete a chore
  */

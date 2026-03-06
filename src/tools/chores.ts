@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
-import { getChores, createChore, updateChore, deleteChore } from "../api/endpoints/chores.js";
+import { getChores, createChore, updateChore, updateChoreTemplate, deleteChore } from "../api/endpoints/chores.js";
 import { findCategoryByName } from "../api/endpoints/categories.js";
 import { getTodayDate, getDateOffset, parseDate, parseTime, formatDateForDisplay } from "../utils/dates.js";
 import { formatErrorForMcp } from "../utils/errors.js";
@@ -273,6 +273,7 @@ Use this when:
 - Marking a chore as complete: "Mark 'dishes' as done"
 - Changing chore assignment: "Reassign the trash to Dad"
 - Updating chore details: "Change the time for the homework chore"
+- Updating all future instances of a recurring chore: use applyToSeries=true
 
 Parameters:
 - choreId (required): ID of the chore (from get_chores)
@@ -281,6 +282,8 @@ Parameters:
 - date: New due date
 - time: New due time
 - assignee: New family member assignment
+- applyToSeries: If true, updates the recurring template so all future instances are affected.
+  Without this, updating a recurring chore only changes that single instance and splits the series.
 
 Returns: The updated chore details.`,
     {
@@ -291,22 +294,17 @@ Returns: The updated chore details.`,
       time: z.string().nullable().optional().describe("New due time (e.g., '10:00 AM', or null to clear)"),
       assignee: z.string().nullable().optional().describe("New family member assignment (or null to unassign)"),
       rewardPoints: z.number().nullable().optional().describe("New reward points (or null to clear)"),
+      applyToSeries: z.boolean().optional().default(false).describe("Apply changes to all future instances of a recurring chore"),
     },
-    async ({ choreId, summary, status, date, time, assignee, rewardPoints }) => {
+    async ({ choreId, summary, status, date, time, assignee, rewardPoints, applyToSeries }) => {
       try {
         const config = getConfig();
-        const updates: Parameters<typeof updateChore>[1] = {};
 
-        if (summary !== undefined) updates.summary = summary;
-        if (status !== undefined) updates.status = status;
-        if (date !== undefined) updates.start = parseDate(date, config.timezone);
-        if (time !== undefined) updates.startTime = time ? parseTime(time) : null;
-        if (rewardPoints !== undefined) updates.rewardPoints = rewardPoints;
-
-        // Handle assignee
+        // Resolve assignee to category ID
+        let categoryId: string | null | undefined;
         if (assignee !== undefined) {
           if (assignee === null) {
-            updates.categoryId = null;
+            categoryId = null;
           } else {
             const category = await findCategoryByName(assignee);
             if (!category) {
@@ -320,9 +318,39 @@ Returns: The updated chore details.`,
                 isError: true,
               };
             }
-            updates.categoryId = category.id;
+            categoryId = category.id;
           }
         }
+
+        if (applyToSeries) {
+          // Extract the base template ID by removing the date suffix
+          const templateId = choreId.split("-").slice(0, -3).join("-") || choreId;
+
+          const templateUpdates: Parameters<typeof updateChoreTemplate>[1] = {};
+          if (summary !== undefined) templateUpdates.summary = summary;
+          if (rewardPoints !== undefined) templateUpdates.reward_points = rewardPoints;
+          if (categoryId !== undefined) templateUpdates.category_id = categoryId;
+
+          const chore = await updateChoreTemplate(templateId, templateUpdates);
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `Updated recurring chore template: "${chore.attributes.summary}" (all future instances)`,
+              },
+            ],
+          };
+        }
+
+        // Single instance update (existing behavior)
+        const updates: Parameters<typeof updateChore>[1] = {};
+        if (summary !== undefined) updates.summary = summary;
+        if (status !== undefined) updates.status = status;
+        if (date !== undefined) updates.start = parseDate(date, config.timezone);
+        if (time !== undefined) updates.startTime = time ? parseTime(time) : null;
+        if (rewardPoints !== undefined) updates.rewardPoints = rewardPoints;
+        if (categoryId !== undefined) updates.categoryId = categoryId;
 
         const chore = await updateChore(choreId, updates);
         const statusText = status === "completed" ? " (marked complete)" : status === "pending" ? " (marked pending)" : "";
