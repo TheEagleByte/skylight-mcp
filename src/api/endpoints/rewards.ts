@@ -5,7 +5,7 @@ import type {
   RewardResponse,
   RewardPointsResponse,
   RewardPointResource,
-  CreateRewardRequest,
+  CreateRewardBody,
   UpdateRewardRequest,
 } from "../types.js";
 
@@ -43,37 +43,28 @@ export interface CreateRewardOptions {
   pointValue: number;
   description?: string;
   emojiIcon?: string;
-  categoryIds?: string[];
+  categoryIds: number[];
   respawnOnRedemption?: boolean;
 }
 
 /**
  * Create a new reward
+ *
+ * The Skylight API expects a flat body (not JSON:API format) and returns
+ * one reward resource per category ID provided.
  */
-export async function createReward(options: CreateRewardOptions): Promise<RewardResource> {
+export async function createReward(options: CreateRewardOptions): Promise<RewardResource[]> {
   const client = getClient();
-  const request: CreateRewardRequest = {
-    data: {
-      type: "reward",
-      attributes: {
-        name: options.name,
-        point_value: options.pointValue,
-        description: options.description ?? null,
-        emoji_icon: options.emojiIcon ?? null,
-        respawn_on_redemption: options.respawnOnRedemption ?? false,
-      },
-    },
+  const body: CreateRewardBody = {
+    name: options.name,
+    point_value: options.pointValue,
+    category_ids: options.categoryIds,
+    description: options.description ?? null,
+    emoji_icon: options.emojiIcon ?? null,
+    respawn_on_redemption: options.respawnOnRedemption ?? false,
   };
 
-  if (options.categoryIds && options.categoryIds.length > 0) {
-    request.data.relationships = {
-      categories: {
-        data: options.categoryIds.map((id) => ({ type: "category", id })),
-      },
-    };
-  }
-
-  const response = await client.post<RewardResponse>("/api/frames/{frameId}/rewards", request);
+  const response = await client.post<RewardsResponse>("/api/frames/{frameId}/rewards", body);
   return response.data;
 }
 

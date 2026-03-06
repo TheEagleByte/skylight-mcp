@@ -295,22 +295,13 @@ export interface UpdateChoreRequest {
 }
 
 // Reward request types
-export interface CreateRewardRequest {
-  data: {
-    type: "reward";
-    attributes: {
-      name: string;
-      description?: string | null;
-      emoji_icon?: string | null;
-      point_value: number;
-      respawn_on_redemption?: boolean;
-    };
-    relationships?: {
-      categories?: {
-        data: JsonApiResourceId[];
-      };
-    };
-  };
+export interface CreateRewardBody {
+  name: string;
+  point_value: number;
+  category_ids: number[];
+  description?: string | null;
+  emoji_icon?: string | null;
+  respawn_on_redemption?: boolean;
 }
 
 export interface UpdateRewardRequest {
