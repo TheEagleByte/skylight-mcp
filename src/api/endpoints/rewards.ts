@@ -161,3 +161,48 @@ export async function unredeemReward(rewardId: string): Promise<RewardResource> 
   );
   return response.data;
 }
+
+/**
+ * Reset reward points for a family member by creating a temporary reward
+ * matching their exact balance, redeeming it, then deleting it.
+ *
+ * This workaround is needed because there is no direct API endpoint to
+ * reset point balances.
+ */
+export async function resetRewardPoints(
+  categoryId: number,
+  currentBalance: number
+): Promise<void> {
+  if (currentBalance <= 0) return;
+
+  const client = getClient();
+
+  // Create a temporary reward using flat body format (required by API)
+  const createResponse = await client.post<RewardsResponse>(
+    "/api/frames/{frameId}/rewards",
+    {
+      name: "__point_reset__",
+      point_value: currentBalance,
+      category_ids: [categoryId],
+      respawn_on_redemption: false,
+    }
+  );
+
+  const tempReward = createResponse.data[0];
+  if (!tempReward) {
+    throw new Error("Failed to create temporary reward for point reset");
+  }
+
+  try {
+    // Redeem the temp reward to drain the balance
+    await client.post<RewardResponse>(
+      `/api/frames/{frameId}/rewards/${tempReward.id}/redeem`,
+      { category_id: String(categoryId) }
+    );
+  } finally {
+    // Always clean up the temp reward
+    await client.request(`/api/frames/{frameId}/rewards/${tempReward.id}`, {
+      method: "DELETE",
+    });
+  }
+}
