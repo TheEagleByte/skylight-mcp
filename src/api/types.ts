@@ -165,14 +165,10 @@ export interface RewardResource {
   attributes: RewardAttributes;
 }
 
-export interface RewardPointAttributes {
-  [key: string]: unknown;
-}
-
-export interface RewardPointResource {
-  type: "reward_point";
-  id: string;
-  attributes: RewardPointAttributes;
+export interface RewardPointEntry {
+  category_id: number;
+  current_point_balance: number;
+  lifetime_points_earned: number;
 }
 
 // API Response types
@@ -187,7 +183,6 @@ export type SourceCalendarsResponse = JsonApiResponse<SourceCalendarResource[]>;
 export type CalendarEventsResponse = JsonApiResponse<CalendarEventResource[], CategoryResource | SourceCalendarResource>;
 export type TaskBoxItemResponse = JsonApiResponse<TaskBoxItemResource>;
 export type RewardsResponse = JsonApiResponse<RewardResource[]>;
-export type RewardPointsResponse = JsonApiResponse<RewardPointResource[]>;
 
 // Request body types for creating resources
 export interface CreateChoreRequest {

@@ -3,8 +3,7 @@ import type {
   RewardsResponse,
   RewardResource,
   RewardResponse,
-  RewardPointsResponse,
-  RewardPointResource,
+  RewardPointEntry,
   CreateRewardRequest,
   UpdateRewardRequest,
 } from "../types.js";
@@ -30,12 +29,11 @@ export async function getRewards(options: GetRewardsOptions = {}): Promise<Rewar
 /**
  * Get reward points for family members
  */
-export async function getRewardPoints(): Promise<RewardPointResource[]> {
+export async function getRewardPoints(): Promise<RewardPointEntry[]> {
   const client = getClient();
-  const response = await client.get<RewardPointsResponse>(
+  return client.get<RewardPointEntry[]>(
     "/api/frames/{frameId}/reward_points"
   );
-  return response.data;
 }
 
 export interface CreateRewardOptions {

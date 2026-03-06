@@ -96,7 +96,7 @@ Returns chores with their assignees, due dates, and completion status.`,
             const assigneeName = categoryId ? categoryMap.get(categoryId) : null;
 
             const parts = [
-              `- ${attrs.summary}`,
+              `- ${attrs.summary} (ID: ${chore.id})`,
               `  Date: ${formatDateForDisplay(attrs.start)}${attrs.start_time ? ` at ${attrs.start_time}` : ""}`,
               `  Status: ${attrs.status}`,
             ];
