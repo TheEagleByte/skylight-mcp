@@ -10,7 +10,7 @@ import {
   redeemReward,
   unredeemReward,
 } from "../api/endpoints/rewards.js";
-import { findCategoryByName } from "../api/endpoints/categories.js";
+import { findCategoryByName, getChoreChartCategories } from "../api/endpoints/categories.js";
 import { formatErrorForMcp } from "../utils/errors.js";
 
 export function registerRewardTools(server: McpServer): void {
@@ -177,7 +177,7 @@ Returns: The created reward details.`,
     },
     async ({ name, pointValue, description, emojiIcon, assignee, respawnOnRedemption }) => {
       try {
-        let categoryIds: string[] | undefined;
+        let categoryIds: number[];
         if (assignee) {
           const category = await findCategoryByName(assignee);
           if (!category) {
@@ -186,10 +186,13 @@ Returns: The created reward details.`,
               isError: true,
             };
           }
-          categoryIds = [category.id];
+          categoryIds = [Number(category.id)];
+        } else {
+          const choreChartMembers = await getChoreChartCategories();
+          categoryIds = choreChartMembers.map((c) => Number(c.id));
         }
 
-        const reward = await createReward({
+        const rewards = await createReward({
           name,
           pointValue,
           description,
@@ -198,11 +201,12 @@ Returns: The created reward details.`,
           respawnOnRedemption,
         });
 
+        const ids = rewards.map((r) => r.id).join(", ");
         return {
           content: [
             {
               type: "text" as const,
-              text: `Created reward "${name}" worth ${pointValue} points (ID: ${reward.id})`,
+              text: `Created reward "${name}" worth ${pointValue} points (IDs: ${ids})`,
             },
           ],
         };
