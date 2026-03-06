@@ -4,7 +4,6 @@ import type {
   ChoreResponse,
   ChoreResource,
   CategoryResource,
-  CreateChoreRequest,
   UpdateChoreRequest,
 } from "../types.js";
 
@@ -60,37 +59,24 @@ export interface CreateChoreOptions {
 
 /**
  * Create a new chore
+ *
+ * The Skylight API expects a flat request body (not JSON:API format)
+ * with category_id as an integer field for assignee.
  */
 export async function createChore(options: CreateChoreOptions): Promise<ChoreResource> {
   const client = getClient();
 
-  const request: CreateChoreRequest = {
-    data: {
-      type: "chore",
-      attributes: {
-        summary: options.summary,
-        start: options.start,
-        start_time: options.startTime ?? null,
-        status: options.status ?? "pending",
-        recurring: options.recurring ?? false,
-        recurrence_set: options.recurrenceSet ?? null,
-        reward_points: options.rewardPoints ?? null,
-        emoji_icon: options.emojiIcon ?? null,
-      },
-    },
+  const request: Record<string, unknown> = {
+    summary: options.summary,
+    start: options.start,
+    start_time: options.startTime ?? null,
+    status: options.status ?? "pending",
+    recurring: options.recurring ?? false,
+    recurrence_set: options.recurrenceSet ?? null,
+    reward_points: options.rewardPoints ?? null,
+    emoji_icon: options.emojiIcon ?? null,
+    category_id: options.categoryId ? parseInt(options.categoryId, 10) : null,
   };
-
-  // Add category relationship if provided
-  if (options.categoryId) {
-    request.data.relationships = {
-      category: {
-        data: {
-          type: "category",
-          id: options.categoryId,
-        },
-      },
-    };
-  }
 
   const response = await client.post<ChoreResponse>(
     "/api/frames/{frameId}/chores",
