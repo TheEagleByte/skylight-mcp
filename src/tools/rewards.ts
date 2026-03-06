@@ -9,8 +9,9 @@ import {
   deleteReward,
   redeemReward,
   unredeemReward,
+  resetRewardPoints,
 } from "../api/endpoints/rewards.js";
-import { findCategoryByName } from "../api/endpoints/categories.js";
+import { findCategoryByName, getChoreChartCategories } from "../api/endpoints/categories.js";
 import { formatErrorForMcp } from "../utils/errors.js";
 
 export function registerRewardTools(server: McpServer): void {
@@ -379,6 +380,85 @@ Returns: The unredeemed reward details.`,
             {
               type: "text" as const,
               text: `Unredeemed reward (ID: ${reward.id})`,
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text" as const, text: formatErrorForMcp(error) }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // reset_reward_points tool
+  server.tool(
+    "reset_reward_points",
+    `Reset reward points balance for a family member (Plus subscription required).
+
+Use this when:
+- Starting a new reward period: "Reset Grayson's points to zero"
+- Clearing all points: "Reset everyone's reward points"
+
+Parameters:
+- assignee: Family member name to reset points for. If not provided, resets all chore-chart members.
+
+Note: There is no direct API to reset points. This works by creating a temporary
+reward matching the exact balance, redeeming it, then deleting it.`,
+    {
+      assignee: z.string().optional().describe("Family member to reset points for (omit to reset all chore-chart members)"),
+    },
+    async ({ assignee }) => {
+      try {
+        const points = await getRewardPoints();
+
+        // Build a map of category_id -> balance from point attributes
+        const balanceMap = new Map<number, number>();
+        for (const point of points) {
+          const attrs = point.attributes as Record<string, unknown>;
+          const catId = (attrs.category_id as number) ?? Number(point.id);
+          const balance = (attrs.current_point_balance as number) ?? 0;
+          if (balance > 0) {
+            balanceMap.set(catId, balance);
+          }
+        }
+
+        let targetCategories: { id: number; name: string }[];
+
+        if (assignee) {
+          const category = await findCategoryByName(assignee);
+          if (!category) {
+            return {
+              content: [{ type: "text" as const, text: `Could not find family member "${assignee}"` }],
+              isError: true,
+            };
+          }
+          targetCategories = [{ id: Number(category.id), name: category.attributes.label ?? assignee }];
+        } else {
+          const choreChartMembers = await getChoreChartCategories();
+          targetCategories = choreChartMembers.map((c) => ({
+            id: Number(c.id),
+            name: c.attributes.label ?? `Category ${c.id}`,
+          }));
+        }
+
+        const results: string[] = [];
+        for (const target of targetCategories) {
+          const balance = balanceMap.get(target.id) ?? 0;
+          if (balance > 0) {
+            await resetRewardPoints(target.id, balance);
+            results.push(`${target.name}: reset ${balance} points to 0`);
+          } else {
+            results.push(`${target.name}: already at 0 points`);
+          }
+        }
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Reset reward points:\n${results.map((r) => `- ${r}`).join("\n")}`,
             },
           ],
         };
