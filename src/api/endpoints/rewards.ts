@@ -3,9 +3,6 @@ import type {
   RewardsResponse,
   RewardResource,
   RewardResponse,
-  RewardPointsResponse,
-  RewardPointResource,
-  CreateRewardRequest,
   UpdateRewardRequest,
 } from "../types.js";
 
@@ -27,15 +24,30 @@ export async function getRewards(options: GetRewardsOptions = {}): Promise<Rewar
   return response.data;
 }
 
+export interface RewardPointBalance {
+  category_id: number;
+  current_point_balance: number;
+  lifetime_points_earned: number;
+}
+
 /**
  * Get reward points for family members
+ * Returns a plain array (not JSON:API format)
  */
-export async function getRewardPoints(): Promise<RewardPointResource[]> {
+export async function getRewardPoints(): Promise<RewardPointBalance[]> {
   const client = getClient();
-  const response = await client.get<RewardPointsResponse>(
-    "/api/frames/{frameId}/reward_points"
-  );
-  return response.data;
+  return client.get<RewardPointBalance[]>("/api/frames/{frameId}/reward_points");
+}
+
+/**
+ * Add (or subtract) points for a family member
+ */
+export async function addRewardPoints(categoryIds: string[], points: number): Promise<RewardPointBalance[]> {
+  const client = getClient();
+  return client.post<RewardPointBalance[]>("/api/frames/{frameId}/reward_points", {
+    category_ids: categoryIds,
+    points,
+  });
 }
 
 export interface CreateRewardOptions {
@@ -52,29 +64,20 @@ export interface CreateRewardOptions {
  */
 export async function createReward(options: CreateRewardOptions): Promise<RewardResource> {
   const client = getClient();
-  const request: CreateRewardRequest = {
-    data: {
-      type: "reward",
-      attributes: {
-        name: options.name,
-        point_value: options.pointValue,
-        description: options.description ?? null,
-        emoji_icon: options.emojiIcon ?? null,
-        respawn_on_redemption: options.respawnOnRedemption ?? false,
-      },
-    },
+
+  // API uses flat JSON body, not JSON:API format. category_ids is required.
+  const body: Record<string, unknown> = {
+    name: options.name,
+    point_value: options.pointValue,
+    description: options.description ?? null,
+    emoji_icon: options.emojiIcon ?? null,
+    respawn_on_redemption: options.respawnOnRedemption ?? false,
+    category_ids: options.categoryIds ?? [],
   };
 
-  if (options.categoryIds && options.categoryIds.length > 0) {
-    request.data.relationships = {
-      categories: {
-        data: options.categoryIds.map((id) => ({ type: "category", id })),
-      },
-    };
-  }
-
-  const response = await client.post<RewardResponse>("/api/frames/{frameId}/rewards", request);
-  return response.data;
+  // Response is { data: RewardResource[] }
+  const response = await client.post<{ data: RewardResource[] }>("/api/frames/{frameId}/rewards", body);
+  return response.data[0];
 }
 
 export interface UpdateRewardOptions {

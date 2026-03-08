@@ -97,6 +97,7 @@ Returns chores with their assignees, due dates, and completion status.`,
 
             const parts = [
               `- ${attrs.summary}`,
+              `  ID: ${chore.id}`,
               `  Date: ${formatDateForDisplay(attrs.start)}${attrs.start_time ? ` at ${attrs.start_time}` : ""}`,
               `  Status: ${attrs.status}`,
             ];
@@ -183,24 +184,39 @@ The chore will appear on the Skylight display.`,
         const config = getConfig();
         const choreDate = date ? parseDate(date, config.timezone) : getTodayDate(config.timezone);
 
-        // Resolve assignee to category ID
-        let categoryId: string | undefined;
-        if (assignee) {
-          const category = await findCategoryByName(assignee);
-          if (category) {
-            categoryId = category.id;
-          } else {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: `Could not find a family member named "${assignee}". Use get_family_members to see available family members.`,
-                },
-              ],
-              isError: true,
-            };
-          }
+        // Resolve assignee to category ID (required by the API)
+        if (!assignee) {
+          // Fetch and list available categories so the user knows what to pass
+          const { getCategories } = await import("../api/endpoints/categories.js");
+          const categories = await getCategories();
+          const names = categories.map((c) => c.attributes.label ?? c.id).join(", ");
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `The Skylight API requires a category (family member) for every chore.\nPlease provide an assignee. Available: ${names || "none found — check your frame ID"}`,
+              },
+            ],
+            isError: true,
+          };
         }
+
+        const category = await findCategoryByName(assignee);
+        if (!category) {
+          const { getCategories } = await import("../api/endpoints/categories.js");
+          const categories = await getCategories();
+          const names = categories.map((c) => c.attributes.label ?? c.id).join(", ");
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `Could not find a family member named "${assignee}".\nAvailable categories: ${names || "none found"}`,
+              },
+            ],
+            isError: true,
+          };
+        }
+        const categoryId = category.id;
 
         // Convert simple recurrence patterns to RRULE
         let recurrenceSet: string | undefined;
@@ -359,15 +375,19 @@ Parameters:
 Note: This permanently removes the chore. For recurring chores, this may only delete one instance.`,
     {
       choreId: z.string().describe("ID of the chore to delete"),
+      applyTo: z
+        .enum(["this", "this_and_following", "all"])
+        .optional()
+        .describe("For recurring chores: 'this' (just this occurrence), 'this_and_following' (this and future), 'all' (entire series). Defaults to 'this'."),
     },
-    async ({ choreId }) => {
+    async ({ choreId, applyTo }) => {
       try {
-        await deleteChore(choreId);
+        await deleteChore(choreId, applyTo);
         return {
           content: [
             {
               type: "text" as const,
-              text: `Deleted chore (ID: ${choreId})`,
+              text: `Deleted chore (ID: ${choreId})${applyTo ? ` [apply_to: ${applyTo}]` : ""}`,
             },
           ],
         };

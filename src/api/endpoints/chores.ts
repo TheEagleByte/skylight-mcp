@@ -4,7 +4,6 @@ import type {
   ChoreResponse,
   ChoreResource,
   CategoryResource,
-  CreateChoreRequest,
   UpdateChoreRequest,
 } from "../types.js";
 
@@ -64,40 +63,32 @@ export interface CreateChoreOptions {
 export async function createChore(options: CreateChoreOptions): Promise<ChoreResource> {
   const client = getClient();
 
-  const request: CreateChoreRequest = {
-    data: {
-      type: "chore",
-      attributes: {
-        summary: options.summary,
-        start: options.start,
-        start_time: options.startTime ?? null,
-        status: options.status ?? "pending",
-        recurring: options.recurring ?? false,
-        recurrence_set: options.recurrenceSet ?? null,
-        reward_points: options.rewardPoints ?? null,
-        emoji_icon: options.emojiIcon ?? null,
-      },
-    },
+  // The Skylight API uses a flat request body (not JSON:API format)
+  const body: Record<string, unknown> = {
+    summary: options.summary,
+    start: options.start,
+    start_time: options.startTime ?? null,
+    recurring: options.recurring ?? false,
+    reward_points: options.rewardPoints ?? null,
+    emoji_icon: options.emojiIcon ?? null,
   };
 
-  // Add category relationship if provided
   if (options.categoryId) {
-    request.data.relationships = {
-      category: {
-        data: {
-          type: "category",
-          id: options.categoryId,
-        },
-      },
-    };
+    body.category_id = options.categoryId;
+    body.category_ids = [options.categoryId];
   }
 
-  const response = await client.post<ChoreResponse>(
-    "/api/frames/{frameId}/chores",
-    request
+  if (options.recurrenceSet) {
+    body.recurrence_set = [options.recurrenceSet];
+  }
+
+  // create_multiple returns { data: ChoreResource[] }
+  const response = await client.post<{ data: ChoreResource[] }>(
+    "/api/frames/{frameId}/chores/create_multiple",
+    body
   );
 
-  return response.data;
+  return response.data[0];
 }
 
 export interface UpdateChoreOptions {
@@ -160,9 +151,10 @@ export async function updateChore(
 /**
  * Delete a chore
  */
-export async function deleteChore(choreId: string): Promise<void> {
+export async function deleteChore(choreId: string, applyTo?: string): Promise<void> {
   const client = getClient();
-  await client.request(`/api/frames/{frameId}/chores/${choreId}`, {
-    method: "DELETE",
-  });
+  const url = applyTo
+    ? `/api/frames/{frameId}/chores/${choreId}?apply_to=${encodeURIComponent(applyTo)}`
+    : `/api/frames/{frameId}/chores/${choreId}`;
+  await client.request(url, { method: "DELETE" });
 }

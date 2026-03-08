@@ -4,6 +4,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
   getRewards,
   getRewardPoints,
+  addRewardPoints,
   createReward,
   updateReward,
   deleteReward,
@@ -114,16 +115,11 @@ Use this to answer:
 
         const pointsList = points
           .map((point) => {
-            const parts = [`- Points (ID: ${point.id})`];
-
-            const attrs = point.attributes;
-            for (const [key, value] of Object.entries(attrs)) {
-              if (value !== null && value !== undefined) {
-                parts.push(`  ${key}: ${value}`);
-              }
-            }
-
-            return parts.join("\n");
+            return [
+              `- Category ID: ${point.category_id}`,
+              `  Current balance: ${point.current_point_balance} pts`,
+              `  Lifetime earned: ${point.lifetime_points_earned} pts`,
+            ].join("\n");
           })
           .join("\n\n");
 
@@ -172,7 +168,7 @@ Returns: The created reward details.`,
       pointValue: z.number().describe("Points needed to redeem this reward"),
       description: z.string().optional().describe("Additional details about the reward"),
       emojiIcon: z.string().optional().describe("Emoji for the reward (e.g., '🎮')"),
-      assignee: z.string().optional().describe("Family member to assign this reward to"),
+      assignee: z.string().describe("Family member to assign this reward to (required by the API)"),
       respawnOnRedemption: z.boolean().optional().default(false).describe("Can be redeemed multiple times"),
     },
     async ({ name, pointValue, description, emojiIcon, assignee, respawnOnRedemption }) => {
@@ -343,6 +339,55 @@ Returns: The redeemed reward details.`,
             {
               type: "text" as const,
               text: `Redeemed reward (ID: ${reward.id})${assignee ? ` for ${assignee}` : ""}`,
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text" as const, text: formatErrorForMcp(error) }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // add_reward_points tool
+  server.tool(
+    "add_reward_points",
+    `Add or subtract reward points for a family member.
+
+Use this when:
+- Awarding bonus points: "Give Diana 10 points"
+- Adjusting a balance: "Subtract 5 points from Walter"
+- Resetting points: pass a negative value equal to their current balance
+
+Parameters:
+- assignee (required): Family member name
+- points (required): Points to add (positive) or subtract (negative)`,
+    {
+      assignee: z.string().describe("Family member name"),
+      points: z.number().describe("Points to add (positive) or subtract (negative)"),
+    },
+    async ({ assignee, points }) => {
+      try {
+        const category = await findCategoryByName(assignee);
+        if (!category) {
+          return {
+            content: [{ type: "text" as const, text: `Could not find family member "${assignee}"` }],
+            isError: true,
+          };
+        }
+
+        const balances = await addRewardPoints([category.id], points);
+        const updated = balances.find((b) => b.category_id === Number(category.id));
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: updated
+                ? `Updated points for ${assignee}: ${updated.current_point_balance} pts (lifetime: ${updated.lifetime_points_earned})`
+                : `Points updated for ${assignee}`,
             },
           ],
         };
