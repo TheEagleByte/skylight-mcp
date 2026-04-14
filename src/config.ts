@@ -1,8 +1,8 @@
 import { z } from "zod";
 
 // Config schema supports two auth methods:
-// 1. Email/password (preferred) - will login and get token automatically
-// 2. Token-based (legacy) - for manual token capture
+// 1. Email/password (preferred) - replays the Skylight web OAuth flow automatically
+// 2. Token-based (legacy/manual) - for captured bearer/basic tokens
 const ConfigSchema = z
   .object({
     // Email/password auth (preferred)
@@ -94,7 +94,7 @@ export function getConfig(): Config {
 }
 
 /**
- * Check if config uses email/password auth
+ * Check if config uses managed OAuth login via email/password
  */
 export function usesEmailAuth(config: Config): boolean {
   return !!(config.email && config.password);

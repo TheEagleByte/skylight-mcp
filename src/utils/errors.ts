@@ -77,9 +77,9 @@ export function formatErrorForMcp(error: unknown): string {
     return `Authentication Error: ${error.message}
 
 Your Skylight token may have expired. To fix this:
-1. Open the Skylight app on your device
-2. Capture fresh API traffic using a proxy tool
-3. Update your SKYLIGHT_TOKEN environment variable
+1. If using email/password auth, retry with valid SKYLIGHT_EMAIL and SKYLIGHT_PASSWORD
+2. If using a manual token, capture fresh API traffic using a proxy tool
+3. Update your SKYLIGHT_TOKEN environment variable if you are using manual token auth
 
 See the auth documentation for detailed steps.`;
   }

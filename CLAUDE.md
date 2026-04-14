@@ -33,7 +33,7 @@ npm run generate:types # Generate TypeScript types from OpenAPI spec
 **Key files**:
 - `config.ts` - Zod-validated env config supporting two auth methods
 - `api/client.ts` - HTTP client with Bearer/Basic auth, auto-login, subscription status tracking
-- `api/auth.ts` - Login endpoint for email/password authentication
+- `api/auth.ts` - Browser-style OAuth login flow for email/password authentication
 - `api/generated-types.ts` - Auto-generated types from OpenAPI spec
 - `utils/dates.ts` - Parses "today", "tomorrow", day names, YYYY-MM-DD
 
@@ -41,18 +41,18 @@ npm run generate:types # Generate TypeScript types from OpenAPI spec
 
 Two methods supported (validated via Zod refinement in `config.ts`):
 
-1. **Email/Password** (recommended): Set `SKYLIGHT_EMAIL` and `SKYLIGHT_PASSWORD`. Server auto-logs in via POST /api/sessions and uses `Basic base64(userId:token)` format for subsequent requests.
+1. **Email/Password** (recommended): Set `SKYLIGHT_EMAIL` and `SKYLIGHT_PASSWORD`. Server reproduces the Skylight web OAuth flow (`/oauth/authorize` -> login form -> `/auth/session` -> `/oauth/token`) and then uses the returned bearer token for API requests.
 2. **Manual Token**: Set `SKYLIGHT_TOKEN` and optionally `SKYLIGHT_AUTH_TYPE` (bearer/basic).
 
 Both require `SKYLIGHT_FRAME_ID` (household identifier from API URLs like `/api/frames/{frameId}/chores`).
 
-**Note**: The Skylight API uses Basic auth with the format `Basic base64(userId:token)`, not Bearer tokens.
+**Note**: Email/password auth now resolves to a bearer token. Manual token auth still supports either `bearer` or `basic`.
 
 ## Plus Subscription
 
 Some features require a Skylight Plus subscription. The server detects subscription status from the login response (`subscription_status: "plus"`). Plus-only tools are not registered for non-Plus users.
 
-**Plus-only domains**: Rewards, Meals, Photos
+**Plus-only domains**: Rewards, Meals, Photos. Subscription status is inferred after login from live API access.
 
 ## MCP Tools (35+ total)
 
@@ -103,4 +103,4 @@ The release workflow (`.github/workflows/release.yml`) will:
 ## API Quirks
 
 - **Calendar date_max is exclusive**: When querying calendar events, `date_max` is treated as exclusive. The code adds 1 day to include events on the end date.
-- **Auth format**: API expects `Basic base64(userId:token)`, not Bearer tokens.
+- **Auth format**: Managed email/password auth now uses OAuth and bearer tokens. Manual token auth may still use bearer or basic depending on the captured token.

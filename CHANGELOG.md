@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.8] - 2026-04-14
+
+### Fixed
+
+- **Authentication**: Updated email/password authentication to match Skylight's current web OAuth flow. The server now follows the browser login sequence (`/oauth/authorize` -> `/auth/session` -> `/oauth/token`) and uses the returned bearer token for API requests.
+
+### Changed
+
+- Centralized shared API constants, including the Skylight API version header
+- Updated auth-related docs and error guidance to reflect OAuth-based login
+- Added automated tests for the OAuth login flow and kept live smoke validation against the real API
+
 ## [1.1.7] - 2025-12-30
 
 ### Fixed

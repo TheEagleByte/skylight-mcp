@@ -1,13 +1,12 @@
 import { getConfig, usesEmailAuth, type Config } from "../config.js";
 import { login } from "./auth.js";
+import { SKYLIGHT_API_VERSION, SKYLIGHT_BASE_URL } from "./constants.js";
 import {
   AuthenticationError,
   NotFoundError,
   RateLimitError,
   SkylightError,
 } from "../utils/errors.js";
-
-const BASE_URL = "https://app.ourskylight.com";
 
 /**
  * Skylight subscription status types
@@ -27,8 +26,7 @@ export interface RequestOptions {
 export class SkylightClient {
   private config: Config;
   private resolvedToken: string | null = null;
-  private resolvedUserId: string | null = null;
-  private loginPromise: Promise<{ token: string; userId: string }> | null = null;
+  private loginPromise: Promise<{ token: string }> | null = null;
   private subscriptionStatus: SubscriptionStatus = null;
 
   constructor(config?: Config) {
@@ -39,21 +37,20 @@ export class SkylightClient {
    * Get the authentication credentials
    * If using email/password auth, will login first
    */
-  private async getCredentials(): Promise<{ token: string; userId: string | null }> {
+  private async getCredentials(): Promise<{ token: string }> {
     // If we already have a resolved token, use it
     if (this.resolvedToken) {
-      return { token: this.resolvedToken, userId: this.resolvedUserId };
+      return { token: this.resolvedToken };
     }
 
     // If using token-based auth, use the configured token
     if (!usesEmailAuth(this.config)) {
-      return { token: this.config.token!, userId: null };
+      return { token: this.config.token! };
     }
 
     // If already logging in, wait for that to complete
     if (this.loginPromise) {
-      const result = await this.loginPromise;
-      return { token: result.token, userId: result.userId };
+      return this.loginPromise;
     }
 
     // Login with email/password
@@ -61,7 +58,6 @@ export class SkylightClient {
     try {
       const result = await this.loginPromise;
       this.resolvedToken = result.token;
-      this.resolvedUserId = result.userId;
       return result;
     } finally {
       this.loginPromise = null;
@@ -71,7 +67,7 @@ export class SkylightClient {
   /**
    * Perform login and return token and userId
    */
-  private async performLogin(): Promise<{ token: string; userId: string }> {
+  private async performLogin(): Promise<{ token: string }> {
     const { email, password } = this.config;
     if (!email || !password) {
       throw new AuthenticationError("Email and password are required for login");
@@ -80,22 +76,20 @@ export class SkylightClient {
     console.error("Logging in to Skylight...");
     const result = await login(email, password);
     this.subscriptionStatus = result.subscriptionStatus as SubscriptionStatus;
-    console.error(`Logged in as ${result.email} (${result.subscriptionStatus})`);
-    return { token: result.token, userId: result.userId };
+    console.error(`Logged in as ${result.email}${result.subscriptionStatus ? ` (${result.subscriptionStatus})` : ""}`);
+    return { token: result.token };
   }
 
   /**
    * Build the Authorization header
-   * For email/password auth: Basic base64(userId:token)
-   * For manual token auth: Bearer or Basic based on config
+   * Email/password auth now resolves to an OAuth bearer token.
+   * Manual token auth still respects the configured auth type.
    */
   private async getAuthHeader(): Promise<string> {
-    const { token, userId } = await this.getCredentials();
+    const { token } = await this.getCredentials();
 
-    // If using email/password auth, use Basic auth with userId:token
-    if (usesEmailAuth(this.config) && userId) {
-      const credentials = Buffer.from(`${userId}:${token}`).toString("base64");
-      return `Basic ${credentials}`;
+    if (usesEmailAuth(this.config)) {
+      return `Bearer ${token}`;
     }
 
     // For manual token config, respect the authType setting
@@ -109,7 +103,7 @@ export class SkylightClient {
    * Build URL with query parameters
    */
   private buildUrl(endpoint: string, params?: Record<string, string | boolean | number | undefined>): string {
-    const url = new URL(endpoint, BASE_URL);
+    const url = new URL(endpoint, SKYLIGHT_BASE_URL);
 
     if (params) {
       for (const [key, value] of Object.entries(params)) {
@@ -131,7 +125,6 @@ export class SkylightClient {
     if (status === 401) {
       // Clear cached credentials on auth failure
       this.resolvedToken = null;
-      this.resolvedUserId = null;
       console.error(`[client] 401 Unauthorized for ${url}`);
 
       if (usesEmailAuth(this.config)) {
@@ -181,6 +174,8 @@ export class SkylightClient {
     const headers: Record<string, string> = {
       Authorization: await this.getAuthHeader(),
       Accept: "application/json",
+      "User-Agent": "SkylightMobile (web)",
+      "Skylight-Api-Version": SKYLIGHT_API_VERSION,
     };
 
     if (body) {
@@ -200,7 +195,6 @@ export class SkylightClient {
       if (response.status === 401 && usesEmailAuth(this.config) && !isRetry) {
         console.error("[client] Got 401, attempting re-login...");
         this.resolvedToken = null;
-        this.resolvedUserId = null;
         return this.request<T>(endpoint, options, true);
       }
       await this.handleResponseError(response, url);

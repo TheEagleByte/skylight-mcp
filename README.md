@@ -90,7 +90,7 @@ The MCP server supports two authentication methods:
 
 ### Option 1: Email/Password (Recommended)
 
-Use your Skylight account credentials. The server will automatically log in and manage tokens.
+Use your Skylight account credentials. The server automatically follows Skylight's web OAuth login flow and manages the returned bearer token for you.
 
 ```env
 SKYLIGHT_EMAIL=your_email@example.com
@@ -100,7 +100,7 @@ SKYLIGHT_FRAME_ID=your_frame_id
 
 ### Option 2: Manual Token (Legacy)
 
-Capture a token from the Skylight app using a proxy tool.
+Capture a bearer or basic token from Skylight traffic using a proxy tool.
 
 ```env
 SKYLIGHT_TOKEN=your_token_here
@@ -123,10 +123,16 @@ You still need to find your frame ID (the household identifier):
 |----------|----------|-------------|
 | `SKYLIGHT_EMAIL` | Option 1 | Your Skylight account email |
 | `SKYLIGHT_PASSWORD` | Option 1 | Your Skylight account password |
-| `SKYLIGHT_TOKEN` | Option 2 | Your API token (if not using email/password) |
+| `SKYLIGHT_TOKEN` | Option 2 | Your captured API token (if not using email/password) |
 | `SKYLIGHT_AUTH_TYPE` | No | `bearer` (default) or `basic` (for manual token) |
 | `SKYLIGHT_FRAME_ID` | Yes | Your household frame ID |
 | `SKYLIGHT_TIMEZONE` | No | Default timezone (default: `America/New_York`) |
+
+### Auth Notes
+
+- Email/password auth no longer uses the legacy `/api/sessions` token flow.
+- The server now reproduces the Skylight web login flow and exchanges the resulting authorization code for a bearer token.
+- Manual token auth still works if you prefer to provide a captured token directly.
 
 ### Example .env file:
 
