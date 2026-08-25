@@ -18,6 +18,11 @@ const ConfigSchema = z
 
     // Optional
     timezone: z.string().default("America/New_York"),
+
+    // Manual override for Plus-gated tools when using token auth, since
+    // subscriptionStatus is only ever populated by the email/password login
+    // flow (see client.ts performLogin) and token auth skips that entirely.
+    hasPlusOverride: z.boolean().default(false),
   })
   .refine(
     (data) => {
@@ -48,6 +53,8 @@ export function loadConfig(): Config {
     frameId: process.env.SKYLIGHT_FRAME_ID,
     authType: process.env.SKYLIGHT_AUTH_TYPE || "bearer",
     timezone: process.env.SKYLIGHT_TIMEZONE || "America/New_York",
+    hasPlusOverride:
+      process.env.SKYLIGHT_HAS_PLUS === "true" || process.env.SKYLIGHT_HAS_PLUS === "1",
   });
 
   if (!result.success) {

@@ -40,7 +40,7 @@ export interface ChoreAttributes {
   is_future: boolean | null;
   recurring: boolean;
   recurring_until: string | null;
-  recurrence_set: string | null;
+  recurrence_set: string[] | null;
   reward_points: number | null;
   emoji_icon: string | null;
   routine: boolean | null;
@@ -190,12 +190,63 @@ export type RewardsResponse = JsonApiResponse<RewardResource[]>;
 export type RewardPointsResponse = JsonApiResponse<RewardPointResource[]>;
 
 // Request body types for creating resources
-export interface CreateChoreRequest {
-  data: {
-    type: "chore";
-    attributes: Partial<ChoreAttributes>;
-    relationships?: ChoreRelationships;
-  };
+//
+// Chore creation does NOT use the JSON:API-shaped single-resource POST that
+// every other endpoint uses. It goes through a bulk endpoint
+// (POST /chores/create_multiple) that takes a flat body and requires either
+// category_ids or up_for_grabs, or the API rejects it with a validation
+// error that (misleadingly) just says "Category is required." even when a
+// category relationship is present in JSON:API form.
+//
+// up_for_grabs is included for completeness but is NOT usable on this
+// account/API version — every request that sets it (create or update)
+// is rejected with "API version does not support Up for Grabs chores",
+// confirmed by direct testing. Assignment via category_ids is required.
+export interface CreateMultipleChoresRequest {
+  summary: string;
+  start: string;
+  start_time?: string | null;
+  recurring?: boolean;
+  recurrence_set?: string[] | null;
+  reward_points?: number | null;
+  emoji_icon?: string | null;
+  category_ids?: string[];
+  up_for_grabs?: boolean;
+}
+
+export type CreateMultipleChoresResponse = JsonApiResponse<ChoreResource[], CategoryResource>;
+
+// Deleting a recurring chore instance requires apply_to or the API 400s
+// with "you must have a valid value for apply_to". Confirmed by testing:
+// only "all" (whole series) and "future" (this occurrence onward) are
+// accepted — there is no single-occurrence-only delete in this API.
+export interface DeleteChoreRequest {
+  apply_to?: "all" | "future";
+}
+
+// Updating a chore ALSO does not use the JSON:API-shaped single-resource
+// PUT body that every other endpoint uses. Confirmed by testing: a
+// JSON:API-wrapped PUT ({ data: { attributes: {...} } }) against a
+// recurring chore silently no-ops — 200 response, but the attributes are
+// unchanged and no error is surfaced. The flat body below, with apply_to
+// set, is what actually applies changes to recurring chores (verified
+// against real recurrence_set/BYDAY changes). It also works for
+// non-recurring chores without apply_to.
+//
+// Note: category_id here is SINGULAR (unlike create's category_ids array)
+// — this is the field name the update endpoint actually reads; category_ids
+// on update is silently ignored, confirmed by testing.
+export interface UpdateChoreFlatRequest {
+  summary?: string;
+  start?: string;
+  start_time?: string | null;
+  status?: string;
+  recurring?: boolean;
+  recurrence_set?: string[] | null;
+  reward_points?: number | null;
+  emoji_icon?: string | null;
+  category_id?: string | null;
+  apply_to?: "all" | "future";
 }
 
 export interface CreateTaskBoxItemRequest {
@@ -285,14 +336,6 @@ export interface UpdateCalendarEventRequest {
 
 export type CalendarEventResponse = JsonApiResponse<CalendarEventResource>;
 
-// Chore update request type
-export interface UpdateChoreRequest {
-  data: {
-    type: "chore";
-    attributes: Partial<ChoreAttributes>;
-    relationships?: ChoreRelationships;
-  };
-}
 
 // Reward request types
 export interface CreateRewardRequest {

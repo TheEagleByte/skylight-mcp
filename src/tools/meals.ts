@@ -346,19 +346,32 @@ Returns: List of scheduled meals.`,
 Use this when:
 - Planning meals for the week
 - Scheduling a recipe for dinner
+- Marking a night as takeout, leftovers, or BYO with no recipe
 
 Parameters:
 - date (required): Date for the meal (YYYY-MM-DD)
 - mealCategoryId (required): Meal category ID (use get_meal_categories)
 - recipeId: Recipe ID to schedule (optional)
+- summary: Freeform meal name when there is no recipe (e.g. "Order in")
+- note: Short note shown with the meal (e.g. "eat by 6:15")
+- addToGroceryList: Push the recipe's ingredients to the frame grocery list
 
-Returns: The created meal sitting.`,
+Provide either recipeId or summary. Returns: The created meal sitting.`,
     {
       date: z.string().describe("Date for the meal (YYYY-MM-DD or 'today', 'tomorrow')"),
       mealCategoryId: z.string().describe("Meal category ID (e.g., ID for 'Dinner')"),
       recipeId: z.string().optional().describe("Recipe ID to schedule"),
+      summary: z
+        .string()
+        .optional()
+        .describe("Freeform meal name when no recipe is used (e.g. 'Order in')"),
+      note: z.string().optional().describe("Short note displayed with the meal"),
+      addToGroceryList: z
+        .boolean()
+        .optional()
+        .describe("Add the recipe's ingredients to the frame's grocery list"),
     },
-    async ({ date, mealCategoryId, recipeId }) => {
+    async ({ date, mealCategoryId, recipeId, summary, note, addToGroceryList }) => {
       try {
         const config = getConfig();
         const mealDate = parseDate(date, config.timezone);
@@ -367,13 +380,18 @@ Returns: The created meal sitting.`,
           date: mealDate,
           mealCategoryId,
           recipeId,
+          summary,
+          note,
+          addToGroceryList,
         });
+
+        const label = summary ?? (recipeId ? `recipe ${recipeId}` : "meal");
 
         return {
           content: [
             {
               type: "text" as const,
-              text: `Scheduled meal for ${formatDateForDisplay(mealDate)} (ID: ${sitting.id})`,
+              text: `Scheduled ${label} for ${formatDateForDisplay(mealDate)} (ID: ${sitting.id})`,
             },
           ],
         };

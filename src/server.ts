@@ -20,11 +20,13 @@ export async function createServer(): Promise<{
   start: () => Promise<void>;
 }> {
   // Validate configuration before starting
-  loadConfig();
+  const config = loadConfig();
 
   // Initialize client and get subscription status BEFORE tool registration
   const client = await initializeClient();
-  const hasPlus = client.hasPlus();
+  // Token auth never populates subscriptionStatus (only the email/password
+  // login flow does), so fall back to the manual SKYLIGHT_HAS_PLUS override.
+  const hasPlus = client.hasPlus() || config.hasPlusOverride;
 
   const server = new McpServer({
     name: "skylight",

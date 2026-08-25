@@ -198,10 +198,18 @@ export interface CreateMealSittingOptions {
   date: string;
   mealCategoryId: string;
   recipeId?: string;
+  summary?: string;
+  note?: string;
+  addToGroceryList?: boolean;
 }
 
 /**
  * Create a meal sitting (schedule a meal)
+ *
+ * Either recipeId or summary should be provided. Use summary for freeform
+ * meals that do not warrant a recipe box entry (takeout nights, leftovers,
+ * "BYO pizza"). Set addToGroceryList to push the recipe's ingredients onto
+ * the frame's grocery list in the same call.
  */
 export async function createMealSitting(
   options: CreateMealSittingOptions
@@ -213,6 +221,15 @@ export async function createMealSitting(
   };
   if (options.recipeId) {
     body.meal_recipe_id = options.recipeId;
+  }
+  if (options.summary !== undefined) {
+    body.summary = options.summary;
+  }
+  if (options.note !== undefined) {
+    body.note = options.note;
+  }
+  if (options.addToGroceryList !== undefined) {
+    body.add_to_grocery_list = options.addToGroceryList;
   }
 
   const response = await client.post<{ data: MealSittingResource }>(
